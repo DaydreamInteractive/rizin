@@ -4760,20 +4760,102 @@ DEFINE_HANDLE_TS_FCN_AND_SYMBOL(redirect_command) {
 	return res;
 }
 
+static bool do_help_manual(RzCmd *cmd, const char* cmdname) {
+	char *cmdname_help = NULL;
+	char *help_msg = NULL;
+	RzCmdParsedArgs *help_pra = NULL;
+	if (cmdname) {
+		cmdname_help = rz_str_newf("%s?", cmdname);
+		if (!cmdname_help) {
+			goto help_rec_err;
+		}
+		help_pra = rz_cmd_parsed_args_newcmd(cmdname_help);
+		if (!help_pra) {
+			goto help_rec_err;
+		}
+		help_msg = rz_cmd_get_help(cmd, help_pra, true);
+		if (!help_msg) {
+			goto help_rec_err;
+		}
+		rz_cons_printf("%s", help_msg);
+
+help_rec_err:
+		free (help_msg);
+		rz_cmd_parsed_args_free(help_pra);
+		free (cmdname_help);
+	}
+	return true;
+}
+
+
+static void foreach_cmd_search(RzCmd *cmd, RzCmdDesc *cd, PJ* pj) {
+	if (!cd) {
+		return;
+	}
+
+	void **it_cd;
+
+	switch (cd->type) {
+	case RZ_CMD_DESC_TYPE_ARGV:
+		if (pj) {
+			rz_cmd_get_help_json(cmd, cd, pj);
+		}
+		break;
+	case RZ_CMD_DESC_TYPE_ARGV_MODES:
+		if (rz_cmd_desc_has_handler(cd)) {
+			if (pj) {
+				rz_cmd_get_help_json(cmd, cd, pj);
+			} else {
+				do_help_manual(cmd, cd->name);
+			}
+		}
+		break;
+	case RZ_CMD_DESC_TYPE_INNER:
+	case RZ_CMD_DESC_TYPE_GROUP:
+		rz_cmd_desc_children_foreach(cd, it_cd) {
+			RzCmdDesc *child = *it_cd;
+			foreach_cmd_search(cmd, child, pj);
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+RZ_IPI RzCmdStatus rz_cmd_help_search_handler(RzCore *core, int argc, const char **argv, RzOutputMode mode) {
+	bool is_interactive = rz_cons_is_interactive(); 
+	rz_cons_set_interactive(false); 
+	PJ* pj = NULL;
+	RzCmdStatus status = RZ_CMD_STATUS_OK;
+
+	if (mode & RZ_OUTPUT_MODE_JSON) {
+		pj = pj_new();
+		if (!pj) {
+			status = RZ_CMD_STATUS_ERROR;
+			goto exit_status;
+		}
+		pj_o(pj);
+	}
+
+	RzCmdDesc *cd = argc == 2 ? rz_cmd_get_desc(core->rcmd, argv[1]) : rz_cmd_get_root(core->rcmd);
+	foreach_cmd_search(core->rcmd, cd, pj);
+
+	if (mode & RZ_OUTPUT_MODE_JSON) {
+		pj_end(pj);
+		rz_cons_printf("%s\n", pj_string(pj));
+		pj_free(pj);
+	}
+exit_status:
+	rz_cons_set_interactive(is_interactive); 
+	return status;
+}
+
 DEFINE_HANDLE_TS_FCN_AND_SYMBOL(help_command) {
 	size_t node_str_len = strlen(node_string);
 	if (node_str_len >= 2 && !strcmp(node_string + node_str_len - 2, "?*")) {
-		// TODO: get recursive help from RzCmdDesc
-		int detail = 0;
-		if (node_str_len > 3 && node_string[node_str_len - 3] == '?') {
-			detail++;
-			if (node_str_len > 4 && node_string[node_str_len - 4] == '?') {
-				detail++;
-			}
-		}
-		node_string[node_str_len - 2 - detail] = '\0';
-		recursive_help(state->core, detail, node_string);
-		return RZ_CMD_STATUS_OK;
+		// this needs to be properly handled.
+		const char* args = node_string;
+		return rz_cmd_help_search_handler(state->core, 1, &args, RZ_OUTPUT_MODE_STANDARD);
 	} else {
 		TSNode command = ts_node_child_by_field_name(node, "command", strlen("command"));
 		char *command_str = ts_node_sub_string(command, state->input);

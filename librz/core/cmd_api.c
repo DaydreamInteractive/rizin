@@ -1089,6 +1089,87 @@ static char *get_help(RzCmd *cmd, RzCmdDesc *cd, RzCmdParsedArgs *args, bool use
 	return NULL;
 }
 
+
+static bool child_help_json(RzCmd *cmd, RzCmdDesc *cd, PJ* j) {
+	pj_k(j, cd->name);
+	pj_o(j);
+	pj_ks(j, "cmd", cd->name);
+	if (cd->help->args_str) {
+		pj_ks(j, "args", cd->help->args_str);
+	} else {
+		RzStrBuf *sb = rz_strbuf_new(NULL);
+		fill_args(sb, cd);
+		char* args = rz_strbuf_drain(sb);
+		pj_ks(j, "args", args);
+		free (args);
+	}
+	pj_ks(j, "desc", cd->help->summary ? cd->help->summary : "");
+	pj_end(j);
+
+	return true;
+}
+
+static bool argv_modes_get_help_json(RzCmd *cmd, RzCmdDesc *cd, PJ *j) {
+	size_t i;
+	for (i = 0; i < RZ_ARRAY_SIZE(argv_modes); i++) {
+		if (cd->d.argv_modes_data.modes & argv_modes[i].mode) {
+			char *name = rz_str_newf("%s%s", cd->name, argv_modes[i].suffix);
+			char *summary = rz_str_newf("%s%s", cd->help->summary, argv_modes[i].summary_suffix);
+
+			pj_k(j, name);
+			pj_o(j); // {
+			pj_ks(j, "cmd", name);
+			if (cd->help->args_str) {
+				pj_ks(j, "args", cd->help->args_str);
+			} else {
+				RzStrBuf *sb = rz_strbuf_new(NULL);
+				fill_args(sb, cd);
+				char* args = rz_strbuf_drain(sb);
+				pj_ks(j, "args", args);
+				free (args);
+			}
+			pj_ks(j, "desc", summary);
+			pj_end(j); // }
+
+			free(name);
+			free(summary);
+		}
+	}
+	return true;
+}
+static bool group_get_help_json(RzCmd *cmd, RzCmdDesc *cd, PJ *j) {
+	void **it_cd;
+	pj_a(j);
+	rz_cmd_desc_children_foreach(cd, it_cd) {
+		RzCmdDesc *child = *(RzCmdDesc **)it_cd;
+		child_help_json(cmd, child, j);
+	}
+	pj_end(j);
+	return true;
+}
+
+RZ_API bool rz_cmd_get_help_json(RzCmd *cmd, RzCmdDesc *cd, PJ *j) {
+	switch (cd->type) {
+	case RZ_CMD_DESC_TYPE_GROUP:
+		if (cd->d.group_data.exec_cd) {
+			return rz_cmd_get_help_json(cmd, cd->d.group_data.exec_cd, j);
+		}
+		return group_get_help_json(cmd, cd, j);
+	case RZ_CMD_DESC_TYPE_ARGV:
+		return child_help_json(cmd, cd, j);
+	case RZ_CMD_DESC_TYPE_ARGV_MODES:
+		return argv_modes_get_help_json(cmd, cd, j);
+	case RZ_CMD_DESC_TYPE_FAKE:
+		return child_help_json(cmd, cd, j);
+	case RZ_CMD_DESC_TYPE_OLDINPUT:
+		return false;
+	case RZ_CMD_DESC_TYPE_INNER:
+		rz_warn_if_reached();
+		return false;
+	}
+	return false;
+}
+
 RZ_API char *rz_cmd_get_help(RzCmd *cmd, RzCmdParsedArgs *args, bool use_color) {
 	char *cmdid = strdup(rz_cmd_parsed_args_cmd(args));
 	char *cmdid_p = cmdid + strlen(cmdid) - 1;
@@ -1684,8 +1765,7 @@ RZ_API char *rz_cmd_parsed_args_execstr(RzCmdParsedArgs *a) {
 }
 
 RZ_API const char *rz_cmd_parsed_args_cmd(RzCmdParsedArgs *a) {
-	rz_return_val_if_fail(a && a->argv && a->argv[0], NULL);
-	return a->argv[0];
+	return a && a->argv && a->argv[0] ? a->argv[0] : NULL;
 }
 
 /* RzCmdDescriptor */

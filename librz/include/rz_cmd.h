@@ -449,6 +449,7 @@ RZ_API RzCmdStatus rz_cmd_call_parsed_args(RzCmd *cmd, RzCmdParsedArgs *args);
 RZ_API RzCmdDesc *rz_cmd_get_root(RzCmd *cmd);
 RZ_API RzCmdDesc *rz_cmd_get_desc(RzCmd *cmd, const char *cmd_identifier);
 RZ_API char *rz_cmd_get_help(RzCmd *cmd, RzCmdParsedArgs *args, bool use_color);
+RZ_API bool rz_cmd_get_help_json(RzCmd *cmd, RzCmdDesc *cd, PJ *j);
 
 static inline RzCmdStatus rz_cmd_int2status(int v) {
 	if (v == -2) {
