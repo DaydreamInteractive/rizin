@@ -1120,6 +1120,7 @@ static void fill_args_json(RzCmdDesc *cd, PJ *j) {
 		CASE_TYPE(RZ_CMD_ARG_TYPE_MACRO, "macro");
 		CASE_TYPE(RZ_CMD_ARG_TYPE_EVAL_KEY, "evaluable");
 		CASE_TYPE(RZ_CMD_ARG_TYPE_EVAL_FULL, "evaluable_full");
+#undef CASE_TYPE
 		default:
 			argtype = "unknown";
 			break;
