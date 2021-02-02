@@ -89,7 +89,8 @@ err:
 	return NULL;
 }
 
-static bool do_autocmplt_cmdidentifier(RzCmd *cmd, const char *name, void *user) {
+static bool do_autocmplt_cmdidentifier(RzCmd *cmd, RzCmdDesc* desc, const char *name, void *user) {
+	(void)desc;
 	struct autocmplt_cmdidentifier_t *u = (struct autocmplt_cmdidentifier_t *)user;
 	if (!strncmp(name, u->s, u->len)) {
 		rz_line_ns_completion_result_add(u->res, name);
@@ -103,7 +104,7 @@ static void autocmplt_cmdidentifier(RzCore *core, RzLineNSCompletionResult *res,
 		.s = s,
 		.len = len,
 	};
-	rz_cmd_foreach_cmdname(core->rcmd, do_autocmplt_cmdidentifier, &u);
+	rz_cmd_foreach_cmdname(core->rcmd, NULL, do_autocmplt_cmdidentifier, &u);
 }
 
 static void autocmplt_cmd_arg_file(RzLineNSCompletionResult *res, const char *s, size_t len) {

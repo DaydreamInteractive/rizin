@@ -599,7 +599,8 @@ bool test_cmd_group_argv_modes(void) {
 	mu_end;
 }
 
-static bool foreach_cmdname_cb(RzCmd *cmd, const char *name, void *user) {
+static bool foreach_cmdname_cb(RzCmd *cmd, RzCmdDesc* desc, const char *name, void *user) {
+	(void)desc;
 	rz_list_append((RzList *)user, strdup(name));
 	return true;
 }
@@ -619,7 +620,7 @@ bool test_foreach_cmdname(void) {
 	rz_cmd_desc_argv_new(cmd, v_inner_cd, "v2", zd_handler, &fake_help);
 
 	RzList *res = rz_list_newf(free);
-	rz_cmd_foreach_cmdname(cmd, foreach_cmdname_cb, res);
+	rz_cmd_foreach_cmdname(cmd, NULL, foreach_cmdname_cb, res);
 
 	const char *exp_regular[] = { "z", "zj", "zq", "zd", "zsq", "pi", "v", "v1", "v2" };
 	mu_assert_eq(rz_list_length(res), RZ_ARRAY_SIZE(exp_regular), "count regular commands that can be executed");

@@ -601,7 +601,7 @@ static const RzCmdDescHelp remote_rap_bg_help = {
 
 static const RzCmdDescArg cmd_help_search_args[] = {
 	{
-		.name = "cmd_prefix",
+		.name = "search_cmd",
 		.type = RZ_CMD_ARG_TYPE_STRING,
 		.optional = true,
 

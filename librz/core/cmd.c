@@ -4787,39 +4787,19 @@ help_rec_err:
 	return true;
 }
 
-
-static void foreach_cmd_search(RzCmd *cmd, RzCmdDesc *cd, PJ* pj) {
-	if (!cd) {
-		return;
+static bool help_search_cmd_desc_entry(RzCmd *cmd, RzCmdDesc* cd, const char *name, void *user) {
+	rz_return_val_if_fail(cd, false);
+	if (cd->type != RZ_CMD_DESC_TYPE_ARGV &&
+		cd->type != RZ_CMD_DESC_TYPE_ARGV_MODES) {
+		return true;
 	}
-
-	void **it_cd;
-
-	switch (cd->type) {
-	case RZ_CMD_DESC_TYPE_ARGV:
-		if (pj) {
-			rz_cmd_get_help_json(cmd, cd, pj);
-		}
-		break;
-	case RZ_CMD_DESC_TYPE_ARGV_MODES:
-		if (rz_cmd_desc_has_handler(cd)) {
-			if (pj) {
-				rz_cmd_get_help_json(cmd, cd, pj);
-			} else {
-				do_help_manual(cmd, cd->name);
-			}
-		}
-		break;
-	case RZ_CMD_DESC_TYPE_INNER:
-	case RZ_CMD_DESC_TYPE_GROUP:
-		rz_cmd_desc_children_foreach(cd, it_cd) {
-			RzCmdDesc *child = *it_cd;
-			foreach_cmd_search(cmd, child, pj);
-		}
-		break;
-	default:
-		break;
+	PJ* pj = (PJ*) user;
+	if (pj) {
+		rz_cmd_get_help_json(cmd, cd, name, pj);
+	} else if (cd->type == RZ_CMD_DESC_TYPE_ARGV_MODES) {
+		do_help_manual(cmd, cd->name);
 	}
+	return true;
 }
 
 RZ_IPI RzCmdStatus rz_cmd_help_search_handler(RzCore *core, int argc, const char **argv, RzOutputMode mode) {
@@ -4827,6 +4807,11 @@ RZ_IPI RzCmdStatus rz_cmd_help_search_handler(RzCore *core, int argc, const char
 	rz_cons_set_interactive(false); 
 	PJ* pj = NULL;
 	RzCmdStatus status = RZ_CMD_STATUS_OK;
+
+	RzCmdDesc *begin = argc == 2 ? rz_cmd_get_desc(core->rcmd, argv[1]) : NULL;
+	if (argc == 2 && !begin) {
+		return RZ_CMD_STATUS_WRONG_ARGS;
+	}
 
 	if (mode & RZ_OUTPUT_MODE_JSON) {
 		pj = pj_new();
@@ -4837,8 +4822,7 @@ RZ_IPI RzCmdStatus rz_cmd_help_search_handler(RzCore *core, int argc, const char
 		pj_o(pj);
 	}
 
-	RzCmdDesc *cd = argc == 2 ? rz_cmd_get_desc(core->rcmd, argv[1]) : rz_cmd_get_root(core->rcmd);
-	foreach_cmd_search(core->rcmd, cd, pj);
+	rz_cmd_foreach_cmdname(core->rcmd, begin, help_search_cmd_desc_entry, pj);
 
 	if (mode & RZ_OUTPUT_MODE_JSON) {
 		pj_end(pj);

@@ -351,7 +351,7 @@
   cname: cmd_help_search
   summary: Search help
   args:
-    - name: cmd_prefix
+    - name: search_cmd
       type: RZ_CMD_ARG_TYPE_STRING
       optional: true
   modes:

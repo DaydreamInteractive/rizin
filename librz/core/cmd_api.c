@@ -1089,85 +1089,89 @@ static char *get_help(RzCmd *cmd, RzCmdDesc *cd, RzCmdParsedArgs *args, bool use
 	return NULL;
 }
 
+static void fill_args_json(RzCmdDesc *cd, PJ *j) {
+	const RzCmdDescArg *arg;
+	bool has_array = false;
+	pj_k(j, "args");
+	pj_a(j);
+	const char* argtype = NULL;
+	for (arg = cd->help->args; arg && arg->name; arg++) {
+		if (has_array) {
+			rz_warn_if_reached();
+			break;
+		}
+		pj_o(j);
+#define CASE_TYPE(x,y) case (x): \
+						argtype = (y); \
+						break
+		switch(arg->type) {
+		CASE_TYPE(RZ_CMD_ARG_TYPE_FAKE, "fake");
+		CASE_TYPE(RZ_CMD_ARG_TYPE_NUM, "number");
+		CASE_TYPE(RZ_CMD_ARG_TYPE_RZNUM, "expression");
+		CASE_TYPE(RZ_CMD_ARG_TYPE_STRING, "string");
+		CASE_TYPE(RZ_CMD_ARG_TYPE_ENV, "environment_variable");
+		CASE_TYPE(RZ_CMD_ARG_TYPE_ZIGN, "zignature");
+		CASE_TYPE(RZ_CMD_ARG_TYPE_ZIGN_SPACE, "zignature_space");
+		CASE_TYPE(RZ_CMD_ARG_TYPE_CHOICES, "choice");
+		CASE_TYPE(RZ_CMD_ARG_TYPE_FCN, "function");
+		CASE_TYPE(RZ_CMD_ARG_TYPE_FILE, "filename");
+		CASE_TYPE(RZ_CMD_ARG_TYPE_OPTION, "option");
+		CASE_TYPE(RZ_CMD_ARG_TYPE_CMD, "command");
+		CASE_TYPE(RZ_CMD_ARG_TYPE_MACRO, "macro");
+		CASE_TYPE(RZ_CMD_ARG_TYPE_EVAL_KEY, "evaluable");
+		CASE_TYPE(RZ_CMD_ARG_TYPE_EVAL_FULL, "evaluable_full");
+		default:
+			argtype = "unknown";
+			break;
+		}
+		pj_ks(j, "type", argtype);
+		pj_ks(j, "name", arg->name);
+		if (arg->type == RZ_CMD_ARG_TYPE_FAKE) {
+			pj_end(j);
+			continue;
+		}
+		pj_kb(j, "nospace", arg->no_space);
+		pj_kb(j, "required", !arg->optional);
+		pj_kb(j, "is_array", arg->flags & RZ_CMD_ARG_FLAG_ARRAY);
+		pj_kb(j, "is_option", arg->flags & RZ_CMD_ARG_FLAG_OPTION);
+		if (arg->default_value) {
+			pj_kb(j, "default", arg->default_value);
+		}
+		pj_end(j);
+	}
+	pj_end(j);
+}
 
-static bool child_help_json(RzCmd *cmd, RzCmdDesc *cd, PJ* j) {
-	pj_k(j, cd->name);
+RZ_API bool rz_cmd_get_help_json(RzCmd *cmd, RzCmdDesc *cd, const char* name, PJ *j) {
+	pj_k(j, name);
 	pj_o(j);
-	pj_ks(j, "cmd", cd->name);
+	pj_ks(j, "cmd", name);
 	if (cd->help->args_str) {
-		pj_ks(j, "args", cd->help->args_str);
+		pj_ks(j, "args_str", cd->help->args_str);
 	} else {
 		RzStrBuf *sb = rz_strbuf_new(NULL);
 		fill_args(sb, cd);
 		char* args = rz_strbuf_drain(sb);
-		pj_ks(j, "args", args);
+		pj_ks(j, "args_str", args);
 		free (args);
 	}
-	pj_ks(j, "desc", cd->help->summary ? cd->help->summary : "");
-	pj_end(j);
-
-	return true;
-}
-
-static bool argv_modes_get_help_json(RzCmd *cmd, RzCmdDesc *cd, PJ *j) {
-	size_t i;
-	for (i = 0; i < RZ_ARRAY_SIZE(argv_modes); i++) {
-		if (cd->d.argv_modes_data.modes & argv_modes[i].mode) {
-			char *name = rz_str_newf("%s%s", cd->name, argv_modes[i].suffix);
-			char *summary = rz_str_newf("%s%s", cd->help->summary, argv_modes[i].summary_suffix);
-
-			pj_k(j, name);
-			pj_o(j); // {
-			pj_ks(j, "cmd", name);
-			if (cd->help->args_str) {
-				pj_ks(j, "args", cd->help->args_str);
-			} else {
-				RzStrBuf *sb = rz_strbuf_new(NULL);
-				fill_args(sb, cd);
-				char* args = rz_strbuf_drain(sb);
-				pj_ks(j, "args", args);
-				free (args);
+	fill_args_json(cd, j);
+	if (!strcmp(cd->name, name)) {
+		pj_ks(j, "summary", cd->help->summary ? cd->help->summary : "");
+	} else {
+		size_t i, len = strlen(cd->name);
+		// skip the standard, because we know it is not "";
+		for (i = 1; i < RZ_ARRAY_SIZE(argv_modes); i++) {
+			if (name[len] == *argv_modes[i].suffix) {
+				char *summary = rz_str_newf("%s%s", cd->help->summary, argv_modes[i].summary_suffix);
+				pj_ks(j, "summary", summary ? summary : "");
+				free(summary);
+				break;
 			}
-			pj_ks(j, "desc", summary);
-			pj_end(j); // }
-
-			free(name);
-			free(summary);
 		}
-	}
-	return true;
-}
-static bool group_get_help_json(RzCmd *cmd, RzCmdDesc *cd, PJ *j) {
-	void **it_cd;
-	pj_a(j);
-	rz_cmd_desc_children_foreach(cd, it_cd) {
-		RzCmdDesc *child = *(RzCmdDesc **)it_cd;
-		child_help_json(cmd, child, j);
 	}
 	pj_end(j);
 	return true;
-}
-
-RZ_API bool rz_cmd_get_help_json(RzCmd *cmd, RzCmdDesc *cd, PJ *j) {
-	switch (cd->type) {
-	case RZ_CMD_DESC_TYPE_GROUP:
-		if (cd->d.group_data.exec_cd) {
-			return rz_cmd_get_help_json(cmd, cd->d.group_data.exec_cd, j);
-		}
-		return group_get_help_json(cmd, cd, j);
-	case RZ_CMD_DESC_TYPE_ARGV:
-		return child_help_json(cmd, cd, j);
-	case RZ_CMD_DESC_TYPE_ARGV_MODES:
-		return argv_modes_get_help_json(cmd, cd, j);
-	case RZ_CMD_DESC_TYPE_FAKE:
-		return child_help_json(cmd, cd, j);
-	case RZ_CMD_DESC_TYPE_OLDINPUT:
-		return false;
-	case RZ_CMD_DESC_TYPE_INNER:
-		rz_warn_if_reached();
-		return false;
-	}
-	return false;
 }
 
 RZ_API char *rz_cmd_get_help(RzCmd *cmd, RzCmdParsedArgs *args, bool use_color) {
@@ -1971,14 +1975,14 @@ static void cmd_foreach_cmdname(RzCmd *cmd, RzCmdDesc *cd, RzCmdForeachNameCb cb
 	switch (cd->type) {
 	case RZ_CMD_DESC_TYPE_ARGV:
 		if (rz_cmd_desc_has_handler(cd)) {
-			cb(cmd, cd->name, user);
+			cb(cmd, cd, cd->name, user);
 		}
 		break;
 	case RZ_CMD_DESC_TYPE_ARGV_MODES:
 		for (i = 0; i < RZ_ARRAY_SIZE(argv_modes); i++) {
 			if (cd->d.argv_modes_data.modes & argv_modes[i].mode) {
 				char *name = rz_str_newf("%s%s", cd->name, argv_modes[i].suffix);
-				cb(cmd, name, user);
+				cb(cmd, cd, name, user);
 				free(name);
 			}
 		}
@@ -1987,7 +1991,7 @@ static void cmd_foreach_cmdname(RzCmd *cmd, RzCmdDesc *cd, RzCmdForeachNameCb cb
 		break;
 	case RZ_CMD_DESC_TYPE_OLDINPUT:
 		if (rz_cmd_desc_has_handler(cd)) {
-			cb(cmd, cd->name, user);
+			cb(cmd, cd, cd->name, user);
 		}
 		// fallthrough
 	case RZ_CMD_DESC_TYPE_INNER:
@@ -2007,11 +2011,12 @@ static void cmd_foreach_cmdname(RzCmd *cmd, RzCmdDesc *cd, RzCmdForeachNameCb cb
  * commands (e.g. ?, h?, etc.) are ignored.
  *
  * \param cmd Reference to RzCmd
+ * \param begin Reference to RzCmdDesc from where to begin the for loop; if NULL the root will be used.
  * \param cb Callback function that is called for each command name.
  * \param user Additional user data that is passed to the callback \p cb.
  */
-RZ_API void rz_cmd_foreach_cmdname(RzCmd *cmd, RzCmdForeachNameCb cb, void *user) {
-	RzCmdDesc *cd = rz_cmd_get_root(cmd);
+RZ_API void rz_cmd_foreach_cmdname(RzCmd *cmd, RzCmdDesc *begin, RzCmdForeachNameCb cb, void *user) {
+	RzCmdDesc *cd = begin ? begin : rz_cmd_get_root(cmd);
 	cmd_foreach_cmdname(cmd, cd, cb, user);
 }
 
