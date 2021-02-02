@@ -243,3 +243,35 @@ EXPECT=<<EOF
 0x116e
 EOF
 RUN
+
+NAME=recursive help
+FILE=-
+CMDS=<<EOF
+?* zi
+EOF
+EXPECT=<<EOF
+Usage: [0mzi[0m[j*qi][0m   # Show zignatures matching information[0m
+| zi[0m[j*q] [<commens>] # Show zignatures matching information[0m
+| zii <from> <to>     # Show zignatures matching information in range[0m
+Usage: [0mzi[0m[j*qi][0m   # Show zignatures matching information[0m
+| zi[0m[j*q] [<commens>] # Show zignatures matching information[0m
+| zii <from> <to>     # Show zignatures matching information in range[0m
+Usage: [0mzi[0m[j*qi][0m   # Show zignatures matching information[0m
+| zi[0m[j*q] [<commens>] # Show zignatures matching information[0m
+| zii <from> <to>     # Show zignatures matching information in range[0m
+Usage: [0mzi[0m[j*qi][0m   # Show zignatures matching information[0m
+| zi[0m[j*q] [<commens>] # Show zignatures matching information[0m
+| zii <from> <to>     # Show zignatures matching information in range[0m
+EOF
+RUN
+
+NAME=recursive help (json)
+FILE=-
+CMDS=<<EOF
+?*j zi
+EOF
+EXPECT=<<EOF
+{"zi":{"cmd":"zi","args_str":" [<commens>]","args":[{"type":"string","name":"commens","nospace":false,"required":false,"is_array":false,"is_option":false}],"summary":"Show zignatures matching information"},"zij":{"cmd":"zij","args_str":" [<commens>]","args":[{"type":"string","name":"commens","nospace":false,"required":false,"is_array":false,"is_option":false}],"summary":"Show zignatures matching information (JSON mode)"},"zi*":{"cmd":"zi*","args_str":" [<commens>]","args":[{"type":"string","name":"commens","nospace":false,"required":false,"is_array":false,"is_option":false}],"summary":"Show zignatures matching information (rizin mode)"},"ziq":{"cmd":"ziq","args_str":" [<commens>]","args":[{"type":"string","name":"commens","nospace":false,"required":false,"is_array":false,"is_option":false}],"summary":"Show zignatures matching information (quiet mode)"},"zii":{"cmd":"zii","args_str":" <from> <to>","args":[{"type":"number","name":"from","nospace":false,"required":true,"is_array":false,"is_option":false},{"type":"number","name":"to","nospace":false,"required":true,"is_array":false,"is_option":false}],"summary":"Show zignatures matching information in range"}}
+EOF
+RUN
+
