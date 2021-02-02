@@ -1765,7 +1765,8 @@ RZ_API char *rz_cmd_parsed_args_execstr(RzCmdParsedArgs *a) {
 }
 
 RZ_API const char *rz_cmd_parsed_args_cmd(RzCmdParsedArgs *a) {
-	return a && a->argv && a->argv[0] ? a->argv[0] : NULL;
+	rz_return_val_if_fail(a && a->argv && a->argv[0], NULL);
+	return a->argv[0];
 }
 
 /* RzCmdDescriptor */
