@@ -74,7 +74,6 @@ typedef enum rz_cmd_arg_type_t {
 #define RZ_CMD_HELP_PRINT_SHOW_CHILDREN (1 << 2) ///< prints children in the help string
 #define RZ_CMD_HELP_PRINT_DEFAULT       (RZ_CMD_HELP_PRINT_SHOW_USAGE)
 
-
 typedef enum rz_cmd_escape_t {
 	RZ_CMD_ESCAPE_ONE_ARG, ///< The string should be escaped so that it appears as one single argument
 	RZ_CMD_ESCAPE_MULTI_ARG, ///< The string should be escaped so that it appears as one or multiple arguments
@@ -440,7 +439,7 @@ typedef struct rz_core_plugin_t {
 	RzCmdCb fini;
 } RzCorePlugin;
 
-typedef bool (*RzCmdForeachNameCb)(RzCmd *cmd, RzCmdDesc* desc, const char* name, void *user);
+typedef bool (*RzCmdForeachNameCb)(RzCmd *cmd, RzCmdDesc *desc, const char *name, void *user);
 
 #ifdef RZ_API
 RZ_API int rz_core_plugin_init(RzCmd *cmd);
@@ -458,7 +457,7 @@ RZ_API RzCmdStatus rz_cmd_call_parsed_args(RzCmd *cmd, RzCmdParsedArgs *args);
 RZ_API RzCmdDesc *rz_cmd_get_root(RzCmd *cmd);
 RZ_API RzCmdDesc *rz_cmd_get_desc(RzCmd *cmd, const char *cmd_identifier);
 RZ_API char *rz_cmd_get_help(RzCmd *cmd, RzCmdParsedArgs *args, ut32 pflags);
-RZ_API bool rz_cmd_get_help_json(RzCmd *cmd, RzCmdDesc *cd, const char* name, PJ *j);
+RZ_API bool rz_cmd_get_help_json(RzCmd *cmd, RzCmdDesc *cd, const char *name, PJ *j);
 
 static inline RzCmdStatus rz_cmd_int2status(int v) {
 	if (v == -2) {

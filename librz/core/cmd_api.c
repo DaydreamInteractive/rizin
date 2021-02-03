@@ -1103,32 +1103,33 @@ static void fill_args_json(RzCmdDesc *cd, PJ *j) {
 	const RzCmdDescArg *arg;
 	bool has_array = false;
 	pj_ka(j, "args");
-	const char* argtype = NULL;
+	const char *argtype = NULL;
 	for (arg = cd->help->args; arg && arg->name; arg++) {
 		if (has_array) {
 			rz_warn_if_reached();
 			break;
 		}
 		pj_o(j);
-#define CASE_TYPE(x,y) case (x): \
-			argtype = (y); \
-			break
-		switch(arg->type) {
-		CASE_TYPE(RZ_CMD_ARG_TYPE_FAKE, "fake");
-		CASE_TYPE(RZ_CMD_ARG_TYPE_NUM, "number");
-		CASE_TYPE(RZ_CMD_ARG_TYPE_RZNUM, "expression");
-		CASE_TYPE(RZ_CMD_ARG_TYPE_STRING, "string");
-		CASE_TYPE(RZ_CMD_ARG_TYPE_ENV, "environment_variable");
-		CASE_TYPE(RZ_CMD_ARG_TYPE_ZIGN, "zignature");
-		CASE_TYPE(RZ_CMD_ARG_TYPE_ZIGN_SPACE, "zignature_space");
-		CASE_TYPE(RZ_CMD_ARG_TYPE_CHOICES, "choice");
-		CASE_TYPE(RZ_CMD_ARG_TYPE_FCN, "function");
-		CASE_TYPE(RZ_CMD_ARG_TYPE_FILE, "filename");
-		CASE_TYPE(RZ_CMD_ARG_TYPE_OPTION, "option");
-		CASE_TYPE(RZ_CMD_ARG_TYPE_CMD, "command");
-		CASE_TYPE(RZ_CMD_ARG_TYPE_MACRO, "macro");
-		CASE_TYPE(RZ_CMD_ARG_TYPE_EVAL_KEY, "evaluable");
-		CASE_TYPE(RZ_CMD_ARG_TYPE_EVAL_FULL, "evaluable_full");
+#define CASE_TYPE(x, y) \
+	case (x): \
+		argtype = (y); \
+		break
+		switch (arg->type) {
+			CASE_TYPE(RZ_CMD_ARG_TYPE_FAKE, "fake");
+			CASE_TYPE(RZ_CMD_ARG_TYPE_NUM, "number");
+			CASE_TYPE(RZ_CMD_ARG_TYPE_RZNUM, "expression");
+			CASE_TYPE(RZ_CMD_ARG_TYPE_STRING, "string");
+			CASE_TYPE(RZ_CMD_ARG_TYPE_ENV, "environment_variable");
+			CASE_TYPE(RZ_CMD_ARG_TYPE_ZIGN, "zignature");
+			CASE_TYPE(RZ_CMD_ARG_TYPE_ZIGN_SPACE, "zignature_space");
+			CASE_TYPE(RZ_CMD_ARG_TYPE_CHOICES, "choice");
+			CASE_TYPE(RZ_CMD_ARG_TYPE_FCN, "function");
+			CASE_TYPE(RZ_CMD_ARG_TYPE_FILE, "filename");
+			CASE_TYPE(RZ_CMD_ARG_TYPE_OPTION, "option");
+			CASE_TYPE(RZ_CMD_ARG_TYPE_CMD, "command");
+			CASE_TYPE(RZ_CMD_ARG_TYPE_MACRO, "macro");
+			CASE_TYPE(RZ_CMD_ARG_TYPE_EVAL_KEY, "evaluable");
+			CASE_TYPE(RZ_CMD_ARG_TYPE_EVAL_FULL, "evaluable_full");
 #undef CASE_TYPE
 		default:
 			argtype = "unknown";
@@ -1171,7 +1172,6 @@ static void fill_args_json(RzCmdDesc *cd, PJ *j) {
 	pj_end(j);
 }
 
-
 /**
  * \brief Create a new command descriptor for a command that supports multiple output
  * modes (e.g. rizin commands, json, csv, etc.).
@@ -1184,7 +1184,6 @@ static void fill_args_json(RzCmdDesc *cd, PJ *j) {
  * \param help Help structure used to describe the command when using `?` and `??`
  */
 
-
 /**
  * \brief generates a json output of the given help message description
  *
@@ -1195,7 +1194,7 @@ static void fill_args_json(RzCmdDesc *cd, PJ *j) {
  *
  * \return returns false if an invalid argument was given, otherwise true.
  */
-RZ_API bool rz_cmd_get_help_json(RzCmd *cmd, RzCmdDesc *cd, const char* name, PJ *j) {
+RZ_API bool rz_cmd_get_help_json(RzCmd *cmd, RzCmdDesc *cd, const char *name, PJ *j) {
 	if (!cmd || !cd || !j) {
 		return false;
 	}
@@ -1206,9 +1205,9 @@ RZ_API bool rz_cmd_get_help_json(RzCmd *cmd, RzCmdDesc *cd, const char* name, PJ
 	} else {
 		RzStrBuf *sb = rz_strbuf_new(NULL);
 		fill_args(sb, cd);
-		char* args = rz_strbuf_drain(sb);
+		char *args = rz_strbuf_drain(sb);
 		pj_ks(j, "args_str", args);
-		free (args);
+		free(args);
 	}
 	fill_args_json(cd, j);
 	pj_ks(j, "description", cd->help->description ? cd->help->description : "");

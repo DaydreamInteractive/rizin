@@ -89,7 +89,7 @@ err:
 	return NULL;
 }
 
-static bool do_autocmplt_cmdidentifier(RzCmd *cmd, RzCmdDesc* desc, const char *name, void *user) {
+static bool do_autocmplt_cmdidentifier(RzCmd *cmd, RzCmdDesc *desc, const char *name, void *user) {
 	(void)desc;
 	struct autocmplt_cmdidentifier_t *u = (struct autocmplt_cmdidentifier_t *)user;
 	if (!strncmp(name, u->s, u->len)) {

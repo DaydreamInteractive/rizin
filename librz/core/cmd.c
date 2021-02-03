@@ -4766,7 +4766,7 @@ DEFINE_HANDLE_TS_FCN_AND_SYMBOL(redirect_command) {
 
 typedef struct _search_help {
 	bool color;
-	PJ* pj;
+	PJ *pj;
 } RzHelpSearch;
 
 static bool do_help_manual(RzCmd *cmd, const char *cmdname, bool color) {
@@ -4793,19 +4793,19 @@ static bool do_help_manual(RzCmd *cmd, const char *cmdname, bool color) {
 	rz_cons_printf("%s", help_msg);
 
 help_rec_err:
-	free (help_msg);
+	free(help_msg);
 	rz_cmd_parsed_args_free(help_pra);
-	free (cmdname_help);
+	free(cmdname_help);
 	return true;
 }
 
-static bool help_search_cmd_desc_entry(RzCmd *cmd, RzCmdDesc* cd, const char *name, void *user) {
+static bool help_search_cmd_desc_entry(RzCmd *cmd, RzCmdDesc *cd, const char *name, void *user) {
 	rz_return_val_if_fail(cd, false);
 	if (cd->type != RZ_CMD_DESC_TYPE_ARGV &&
 		cd->type != RZ_CMD_DESC_TYPE_ARGV_MODES) {
 		return true;
 	}
-	RzHelpSearch* hs = (RzHelpSearch*) user;
+	RzHelpSearch *hs = (RzHelpSearch *)user;
 	if (hs->pj) {
 		rz_cmd_get_help_json(cmd, cd, name, hs->pj);
 	} else if (!strcmp(cd->name, name)) {
@@ -4815,9 +4815,9 @@ static bool help_search_cmd_desc_entry(RzCmd *cmd, RzCmdDesc* cd, const char *na
 }
 
 RZ_IPI RzCmdStatus rz_cmd_help_search_handler(RzCore *core, int argc, const char **argv, RzOutputMode mode) {
-	bool is_interactive = rz_cons_is_interactive(); 
-	rz_cons_set_interactive(false); 
-	PJ* pj = NULL;
+	bool is_interactive = rz_cons_is_interactive();
+	rz_cons_set_interactive(false);
+	PJ *pj = NULL;
 	RzCmdStatus status = RZ_CMD_STATUS_OK;
 
 	RzCmdDesc *begin = argc == 2 ? rz_cmd_get_desc(core->rcmd, argv[1]) : NULL;
@@ -4847,12 +4847,11 @@ RZ_IPI RzCmdStatus rz_cmd_help_search_handler(RzCore *core, int argc, const char
 		pj_free(pj);
 	}
 exit_status:
-	rz_cons_set_interactive(is_interactive); 
+	rz_cons_set_interactive(is_interactive);
 	return status;
 }
 
 DEFINE_HANDLE_TS_FCN_AND_SYMBOL(help_command) {
-	size_t node_str_len = strlen(node_string);
 	TSNode command = ts_node_child_by_field_name(node, "command", strlen("command"));
 	char *command_str = ts_node_sub_string(command, state->input);
 	TSNode args = ts_node_child_by_field_name(node, "args", strlen("args"));
