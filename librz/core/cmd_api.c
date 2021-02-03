@@ -1185,7 +1185,7 @@ static void fill_args_json(const RzCmdDesc *cd, PJ *j) {
  */
 
 /**
- * \brief generates a json output of the given help message description
+ * \brief Generates a JSON output of the given help message description
  *
  * \param cmd reference to RzCmd
  * \param cd reference to RzCmdDesc
