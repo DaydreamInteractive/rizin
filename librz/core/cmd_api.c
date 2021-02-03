@@ -739,7 +739,7 @@ static void fill_wrapped_comment(RzCmd *cmd, RzStrBuf *sb, const char *comment, 
 	}
 }
 
-static size_t fill_args(RzStrBuf *sb, RzCmdDesc *cd) {
+static size_t fill_args(RzStrBuf *sb, const RzCmdDesc *cd) {
 	const RzCmdDescArg *arg;
 	size_t n_optionals = 0;
 	size_t len = 0;
@@ -1099,7 +1099,7 @@ static char *get_help(RzCmd *cmd, RzCmdDesc *cd, RzCmdParsedArgs *args, ut32 pfl
 	return NULL;
 }
 
-static void fill_args_json(RzCmdDesc *cd, PJ *j) {
+static void fill_args_json(const RzCmdDesc *cd, PJ *j) {
 	const RzCmdDescArg *arg;
 	bool has_array = false;
 	pj_ka(j, "args");
@@ -1194,7 +1194,7 @@ static void fill_args_json(RzCmdDesc *cd, PJ *j) {
  *
  * \return returns false if an invalid argument was given, otherwise true.
  */
-RZ_API bool rz_cmd_get_help_json(RzCmd *cmd, RzCmdDesc *cd, const char *name, PJ *j) {
+RZ_API bool rz_cmd_get_help_json(RzCmd *cmd, const RzCmdDesc *cd, const char *name, PJ *j) {
 	if (!cmd || !cd || !j) {
 		return false;
 	}

@@ -599,7 +599,7 @@ bool test_cmd_group_argv_modes(void) {
 	mu_end;
 }
 
-static bool foreach_cmdname_cb(RzCmd *cmd, RzCmdDesc *desc, const char *name, void *user) {
+static bool foreach_cmdname_cb(RzCmd *cmd, const RzCmdDesc *desc, const char *name, void *user) {
 	(void)desc;
 	rz_list_append((RzList *)user, strdup(name));
 	return true;

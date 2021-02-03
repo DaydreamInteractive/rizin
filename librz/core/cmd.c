@@ -4799,7 +4799,7 @@ help_rec_err:
 	return true;
 }
 
-static bool help_search_cmd_desc_entry(RzCmd *cmd, RzCmdDesc *cd, const char *name, void *user) {
+static bool help_search_cmd_desc_entry(RzCmd *cmd, const RzCmdDesc *cd, const char *name, void *user) {
 	rz_return_val_if_fail(cd, false);
 	if (cd->type != RZ_CMD_DESC_TYPE_ARGV &&
 		cd->type != RZ_CMD_DESC_TYPE_ARGV_MODES) {
