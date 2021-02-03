@@ -4618,7 +4618,11 @@ DEFINE_HANDLE_TS_FCN_AND_SYMBOL(arged_command) {
 			if (!help_pra) {
 				goto err;
 			}
-			char *help_msg = rz_cmd_get_help(state->core->rcmd, help_pra, true);
+			ut32 pflags = RZ_CMD_HELP_PRINT_DEFAULT;
+			if (state->core->print->flags & RZ_PRINT_FLAGS_COLOR) {
+				pflags |= RZ_CMD_HELP_PRINT_USE_COLORS;
+			}
+			char *help_msg = rz_cmd_get_help(state->core->rcmd, help_pra, pflags);
 			if (!help_msg) {
 				goto help_pra_err;
 			}
@@ -4760,30 +4764,38 @@ DEFINE_HANDLE_TS_FCN_AND_SYMBOL(redirect_command) {
 	return res;
 }
 
-static bool do_help_manual(RzCmd *cmd, const char* cmdname) {
+typedef struct _search_help {
+	bool color;
+	PJ* pj;
+} RzHelpSearch;
+
+static bool do_help_manual(RzCmd *cmd, const char *cmdname, bool color) {
+	if (!cmdname) {
+		return false;
+	}
 	char *cmdname_help = NULL;
 	char *help_msg = NULL;
 	RzCmdParsedArgs *help_pra = NULL;
-	if (cmdname) {
-		cmdname_help = rz_str_newf("%s?", cmdname);
-		if (!cmdname_help) {
-			goto help_rec_err;
-		}
-		help_pra = rz_cmd_parsed_args_newcmd(cmdname_help);
-		if (!help_pra) {
-			goto help_rec_err;
-		}
-		help_msg = rz_cmd_get_help(cmd, help_pra, true);
-		if (!help_msg) {
-			goto help_rec_err;
-		}
-		rz_cons_printf("%s", help_msg);
+
+	cmdname_help = rz_str_newf("%s?", cmdname);
+	if (!cmdname_help) {
+		goto help_rec_err;
+	}
+	help_pra = rz_cmd_parsed_args_newcmd(cmdname_help);
+	if (!help_pra) {
+		goto help_rec_err;
+	}
+	ut32 pflags = color ? RZ_CMD_HELP_PRINT_USE_COLORS : 0;
+	help_msg = rz_cmd_get_help(cmd, help_pra, pflags);
+	if (!help_msg) {
+		goto help_rec_err;
+	}
+	rz_cons_printf("%s", help_msg);
 
 help_rec_err:
-		free (help_msg);
-		rz_cmd_parsed_args_free(help_pra);
-		free (cmdname_help);
-	}
+	free (help_msg);
+	rz_cmd_parsed_args_free(help_pra);
+	free (cmdname_help);
 	return true;
 }
 
@@ -4793,11 +4805,11 @@ static bool help_search_cmd_desc_entry(RzCmd *cmd, RzCmdDesc* cd, const char *na
 		cd->type != RZ_CMD_DESC_TYPE_ARGV_MODES) {
 		return true;
 	}
-	PJ* pj = (PJ*) user;
-	if (pj) {
-		rz_cmd_get_help_json(cmd, cd, name, pj);
-	} else if (cd->type == RZ_CMD_DESC_TYPE_ARGV_MODES) {
-		do_help_manual(cmd, cd->name);
+	RzHelpSearch* hs = (RzHelpSearch*) user;
+	if (hs->pj) {
+		rz_cmd_get_help_json(cmd, cd, name, hs->pj);
+	} else if (!strcmp(cd->name, name)) {
+		do_help_manual(cmd, cd->name, hs->color);
 	}
 	return true;
 }
@@ -4822,7 +4834,12 @@ RZ_IPI RzCmdStatus rz_cmd_help_search_handler(RzCore *core, int argc, const char
 		pj_o(pj);
 	}
 
-	rz_cmd_foreach_cmdname(core->rcmd, begin, help_search_cmd_desc_entry, pj);
+	RzHelpSearch hs = {
+		.color = core->print->flags & RZ_PRINT_FLAGS_COLOR,
+		.pj = pj,
+	};
+
+	rz_cmd_foreach_cmdname(core->rcmd, begin, help_search_cmd_desc_entry, &hs);
 
 	if (mode & RZ_OUTPUT_MODE_JSON) {
 		pj_end(pj);
@@ -4863,7 +4880,11 @@ DEFINE_HANDLE_TS_FCN_AND_SYMBOL(help_command) {
 
 		// let's try first with the new auto-generated help, if
 		// something fails fallback to old behaviour
-		char *help_msg = rz_cmd_get_help(state->core->rcmd, pr_args, state->core->print->flags & RZ_PRINT_FLAGS_COLOR);
+		ut32 pflags = RZ_CMD_HELP_PRINT_DEFAULT;
+		if (state->core->print->flags & RZ_PRINT_FLAGS_COLOR) {
+			pflags |= RZ_CMD_HELP_PRINT_USE_COLORS;
+		}
+		char *help_msg = rz_cmd_get_help(state->core->rcmd, pr_args, pflags);
 		if (help_msg) {
 			rz_cons_printf("%s", help_msg);
 			free(help_msg);

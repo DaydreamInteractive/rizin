@@ -642,6 +642,33 @@ bool test_foreach_cmdname(void) {
 	rz_list_free(res);
 	rz_list_free(exp_regular_l);
 
+	// Testing with known initial tree
+
+	RzCmdDesc *begin = rz_cmd_get_desc(cmd, "z");
+
+	mu_assert_notnull(begin, "command description found");
+
+	res = rz_list_newf(free);
+	rz_cmd_foreach_cmdname(cmd, begin, foreach_cmdname_cb, res);
+
+	const char *exp_regular2[] = { "z", "zj", "zq", "zd", "zsq" };
+	mu_assert_eq(rz_list_length(res), RZ_ARRAY_SIZE(exp_regular2), "count regular commands that can be executed");
+
+	exp_regular_l = rz_list_new_from_array((const void **)exp_regular2, RZ_ARRAY_SIZE(exp_regular2));
+	rz_list_sort(exp_regular_l, (RzListComparator)strcmp);
+	rz_list_sort(res, (RzListComparator)strcmp);
+
+	rz_list_foreach (exp_regular_l, it, s) {
+		RzStrBuf sb;
+		rz_strbuf_initf(&sb, "check command `%s`", s);
+		mu_assert_streq(rz_list_get_n(res, i++), s, rz_strbuf_get(&sb));
+		rz_strbuf_fini(&sb);
+	}
+
+	rz_list_free(res);
+	rz_list_free(exp_regular_l);
+
+
 	rz_cmd_free(cmd);
 	mu_end;
 }

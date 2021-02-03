@@ -789,7 +789,13 @@ static size_t fill_args(RzStrBuf *sb, RzCmdDesc *cd) {
 	return len;
 }
 
-static void fill_usage_strbuf(RzCmd *cmd, RzStrBuf *sb, RzCmdDesc *cd, bool use_color) {
+static void fill_usage_strbuf(RzCmd *cmd, RzStrBuf *sb, RzCmdDesc *cd, ut32 pflags) {
+	bool show_usage = pflags & RZ_CMD_HELP_PRINT_SHOW_USAGE;
+	if (!show_usage) {
+		return;
+	}
+
+	bool use_color = pflags & RZ_CMD_HELP_PRINT_USE_COLORS;
 	const char *pal_label_color = "",
 		   *pal_args_color = "",
 		   *pal_input_color = "",
@@ -865,7 +871,9 @@ static void update_minmax_len(RzCmdDesc *cd, size_t *max_len, size_t *min_len) {
 	*min_len = val < *min_len ? val : *min_len;
 }
 
-static void do_print_child_help(RzCmd *cmd, RzStrBuf *sb, RzCmdDesc *cd, const char *name, const char *summary, bool show_children, size_t max_len, bool use_color) {
+static void do_print_child_help(RzCmd *cmd, RzStrBuf *sb, RzCmdDesc *cd, const char *name, const char *summary, ut32 pflags, size_t max_len) {
+	bool use_color = pflags & RZ_CMD_HELP_PRINT_USE_COLORS;
+	bool show_children = pflags & RZ_CMD_HELP_PRINT_SHOW_CHILDREN;
 	size_t str_len = calc_padding_len(cd, name);
 	int padding = str_len < max_len ? max_len - str_len : 0;
 	const char *pal_args_color = "",
@@ -905,13 +913,14 @@ static void do_print_child_help(RzCmd *cmd, RzStrBuf *sb, RzCmdDesc *cd, const c
 	rz_strbuf_appendf(sb, "%s\n", pal_reset);
 }
 
-static void print_child_help(RzCmd *cmd, RzStrBuf *sb, RzCmdDesc *cd, size_t max_len, bool use_color) {
-	do_print_child_help(cmd, sb, cd, cd->name, cd->help->summary ? cd->help->summary : "", true, max_len, use_color);
+static void print_child_help(RzCmd *cmd, RzStrBuf *sb, RzCmdDesc *cd, size_t max_len, ut32 pflags) {
+	pflags |= RZ_CMD_HELP_PRINT_SHOW_CHILDREN;
+	do_print_child_help(cmd, sb, cd, cd->name, cd->help->summary ? cd->help->summary : "", pflags, max_len);
 }
 
-static char *group_get_help(RzCmd *cmd, RzCmdDesc *cd, bool use_color) {
+static char *group_get_help(RzCmd *cmd, RzCmdDesc *cd, ut32 pflags) {
 	RzStrBuf *sb = rz_strbuf_new(NULL);
-	fill_usage_strbuf(cmd, sb, cd, use_color);
+	fill_usage_strbuf(cmd, sb, cd, pflags);
 
 	void **it_cd;
 	size_t max_len = 0, min_len = SIZE_MAX;
@@ -926,14 +935,14 @@ static char *group_get_help(RzCmd *cmd, RzCmdDesc *cd, bool use_color) {
 
 	rz_cmd_desc_children_foreach(cd, it_cd) {
 		RzCmdDesc *child = *(RzCmdDesc **)it_cd;
-		print_child_help(cmd, sb, child, max_len, use_color);
+		print_child_help(cmd, sb, child, max_len, pflags);
 	}
 	return rz_strbuf_drain(sb);
 }
 
-static char *argv_modes_get_help(RzCmd *cmd, RzCmdDesc *cd, bool use_color) {
+static char *argv_modes_get_help(RzCmd *cmd, RzCmdDesc *cd, ut32 pflags) {
 	RzStrBuf *sb = rz_strbuf_new(NULL);
-	fill_usage_strbuf(cmd, sb, cd, use_color);
+	fill_usage_strbuf(cmd, sb, cd, pflags);
 
 	size_t max_len = 0, min_len = SIZE_MAX;
 	update_minmax_len(cd, &max_len, &min_len);
@@ -947,7 +956,7 @@ static char *argv_modes_get_help(RzCmd *cmd, RzCmdDesc *cd, bool use_color) {
 		if (cd->d.argv_modes_data.modes & argv_modes[i].mode) {
 			char *name = rz_str_newf("%s%s", cd->name, argv_modes[i].suffix);
 			char *summary = rz_str_newf("%s%s", cd->help->summary, argv_modes[i].summary_suffix);
-			do_print_child_help(cmd, sb, cd, name, summary, false, max_len, use_color);
+			do_print_child_help(cmd, sb, cd, name, summary, pflags, max_len);
 			free(name);
 			free(summary);
 		}
@@ -956,7 +965,8 @@ static char *argv_modes_get_help(RzCmd *cmd, RzCmdDesc *cd, bool use_color) {
 	return rz_strbuf_drain(sb);
 }
 
-static void fill_details(RzCmd *cmd, RzCmdDesc *cd, RzStrBuf *sb, bool use_color) {
+static void fill_details(RzCmd *cmd, RzCmdDesc *cd, RzStrBuf *sb, ut32 pflags) {
+	bool use_color = pflags & RZ_CMD_HELP_PRINT_USE_COLORS;
 	if (!cd->help->details) {
 		return;
 	}
@@ -1015,10 +1025,10 @@ static void fill_details(RzCmd *cmd, RzCmdDesc *cd, RzStrBuf *sb, bool use_color
 	}
 }
 
-static char *argv_get_help(RzCmd *cmd, RzCmdDesc *cd, size_t detail, bool use_color) {
+static char *argv_get_help(RzCmd *cmd, RzCmdDesc *cd, size_t detail, ut32 pflags) {
 	RzStrBuf *sb = rz_strbuf_new(NULL);
 
-	fill_usage_strbuf(cmd, sb, cd, use_color);
+	fill_usage_strbuf(cmd, sb, cd, pflags);
 
 	switch (detail) {
 	case 1:
@@ -1027,7 +1037,7 @@ static char *argv_get_help(RzCmd *cmd, RzCmdDesc *cd, size_t detail, bool use_co
 		if (cd->help->description) {
 			rz_strbuf_appendf(sb, "\n%s\n", cd->help->description);
 		}
-		fill_details(cmd, cd, sb, use_color);
+		fill_details(cmd, cd, sb, pflags);
 		return rz_strbuf_drain(sb);
 	default:
 		rz_strbuf_free(sb);
@@ -1035,9 +1045,9 @@ static char *argv_get_help(RzCmd *cmd, RzCmdDesc *cd, size_t detail, bool use_co
 	}
 }
 
-static char *fake_get_help(RzCmd *cmd, RzCmdDesc *cd, bool use_color) {
+static char *fake_get_help(RzCmd *cmd, RzCmdDesc *cd, ut32 pflags) {
 	// abuse detail=2 of the argv help as they show essentially the same info
-	return argv_get_help(cmd, cd, 2, use_color);
+	return argv_get_help(cmd, cd, 2, pflags);
 }
 
 static char *oldinput_get_help(RzCmd *cmd, RzCmdDesc *cd, RzCmdParsedArgs *a) {
@@ -1057,29 +1067,29 @@ static char *oldinput_get_help(RzCmd *cmd, RzCmdDesc *cd, RzCmdParsedArgs *a) {
 	return res;
 }
 
-static char *get_help(RzCmd *cmd, RzCmdDesc *cd, RzCmdParsedArgs *args, bool use_color, size_t detail) {
+static char *get_help(RzCmd *cmd, RzCmdDesc *cd, RzCmdParsedArgs *args, ut32 pflags, size_t detail) {
 	switch (cd->type) {
 	case RZ_CMD_DESC_TYPE_GROUP:
 		if (detail > 1 && cd->d.group_data.exec_cd) {
-			return get_help(cmd, cd->d.group_data.exec_cd, args, use_color, detail);
+			return get_help(cmd, cd->d.group_data.exec_cd, args, pflags, detail);
 		}
 		if (detail == 1) {
 			// show the group help only when doing <cmd>?
-			return group_get_help(cmd, cd, use_color);
+			return group_get_help(cmd, cd, pflags);
 		}
-		return argv_get_help(cmd, cd, detail, use_color);
+		return argv_get_help(cmd, cd, detail, pflags);
 	case RZ_CMD_DESC_TYPE_ARGV:
-		return argv_get_help(cmd, cd, detail, use_color);
+		return argv_get_help(cmd, cd, detail, pflags);
 	case RZ_CMD_DESC_TYPE_ARGV_MODES:
 		if (detail == 1) {
-			return argv_modes_get_help(cmd, cd, use_color);
+			return argv_modes_get_help(cmd, cd, pflags);
 		}
-		return argv_get_help(cmd, cd, detail, use_color);
+		return argv_get_help(cmd, cd, detail, pflags);
 	case RZ_CMD_DESC_TYPE_FAKE:
 		if (detail != 1) {
 			return NULL;
 		}
-		return fake_get_help(cmd, cd, use_color);
+		return fake_get_help(cmd, cd, pflags);
 	case RZ_CMD_DESC_TYPE_OLDINPUT:
 		return oldinput_get_help(cmd, cd, args);
 	case RZ_CMD_DESC_TYPE_INNER:
@@ -1092,8 +1102,7 @@ static char *get_help(RzCmd *cmd, RzCmdDesc *cd, RzCmdParsedArgs *args, bool use
 static void fill_args_json(RzCmdDesc *cd, PJ *j) {
 	const RzCmdDescArg *arg;
 	bool has_array = false;
-	pj_k(j, "args");
-	pj_a(j);
+	pj_ka(j, "args");
 	const char* argtype = NULL;
 	for (arg = cd->help->args; arg && arg->name; arg++) {
 		if (has_array) {
@@ -1102,8 +1111,8 @@ static void fill_args_json(RzCmdDesc *cd, PJ *j) {
 		}
 		pj_o(j);
 #define CASE_TYPE(x,y) case (x): \
-						argtype = (y); \
-						break
+			argtype = (y); \
+			break
 		switch(arg->type) {
 		CASE_TYPE(RZ_CMD_ARG_TYPE_FAKE, "fake");
 		CASE_TYPE(RZ_CMD_ARG_TYPE_NUM, "number");
@@ -1131,21 +1140,66 @@ static void fill_args_json(RzCmdDesc *cd, PJ *j) {
 			pj_end(j);
 			continue;
 		}
-		pj_kb(j, "nospace", arg->no_space);
-		pj_kb(j, "required", !arg->optional);
-		pj_kb(j, "is_array", arg->flags & RZ_CMD_ARG_FLAG_ARRAY);
-		pj_kb(j, "is_option", arg->flags & RZ_CMD_ARG_FLAG_OPTION);
+		if (arg->no_space) {
+			pj_kb(j, "nospace", true);
+		}
+		if (!arg->optional) {
+			pj_kb(j, "required", true);
+		}
+		if (arg->flags & RZ_CMD_ARG_FLAG_LAST) {
+			pj_kb(j, "is_last", true);
+		}
+		if (arg->flags & RZ_CMD_ARG_FLAG_ARRAY) {
+			pj_kb(j, "is_array", true);
+		}
+		if (arg->flags & RZ_CMD_ARG_FLAG_OPTION) {
+			pj_kb(j, "is_option", true);
+		}
 		if (arg->default_value) {
-			pj_kb(j, "default", arg->default_value);
+			pj_ks(j, "default", arg->default_value);
+		}
+		if (arg->type == RZ_CMD_ARG_TYPE_CHOICES) {
+			pj_ka(j, "choices");
+			const char **choice = arg->choices;
+			for (; *choice; choice++) {
+				pj_s(j, *choice);
+			}
+			pj_end(j);
 		}
 		pj_end(j);
 	}
 	pj_end(j);
 }
 
+
+/**
+ * \brief Create a new command descriptor for a command that supports multiple output
+ * modes (e.g. rizin commands, json, csv, etc.).
+ *
+ * \param cmd reference to the RzCmd
+ * \param parent Parent command descriptor of the command being added
+ * \param name Base name of the command. New commands will be created with the proper suffix based on the supported \p modes
+ * \param modes Modes supported by the handler (see RzOutputMode). They can be put in OR to support multiple modes
+ * \param cb Callback that actually executes the command
+ * \param help Help structure used to describe the command when using `?` and `??`
+ */
+
+
+/**
+ * \brief generates a json output of the given help message description
+ *
+ * \param cmd reference to RzCmd
+ * \param cd reference to RzCmdDesc
+ * \param name command name
+ * \param j reference to PJ
+ *
+ * \return returns false if an invalid argument was given, otherwise true.
+ */
 RZ_API bool rz_cmd_get_help_json(RzCmd *cmd, RzCmdDesc *cd, const char* name, PJ *j) {
-	pj_k(j, name);
-	pj_o(j);
+	if (!cmd || !cd || !j) {
+		return false;
+	}
+	pj_ko(j, name);
 	pj_ks(j, "cmd", name);
 	if (cd->help->args_str) {
 		pj_ks(j, "args_str", cd->help->args_str);
@@ -1157,6 +1211,7 @@ RZ_API bool rz_cmd_get_help_json(RzCmd *cmd, RzCmdDesc *cd, const char* name, PJ
 		free (args);
 	}
 	fill_args_json(cd, j);
+	pj_ks(j, "description", cd->help->description ? cd->help->description : "");
 	if (!strcmp(cd->name, name)) {
 		pj_ks(j, "summary", cd->help->summary ? cd->help->summary : "");
 	} else {
@@ -1175,7 +1230,7 @@ RZ_API bool rz_cmd_get_help_json(RzCmd *cmd, RzCmdDesc *cd, const char* name, PJ
 	return true;
 }
 
-RZ_API char *rz_cmd_get_help(RzCmd *cmd, RzCmdParsedArgs *args, bool use_color) {
+RZ_API char *rz_cmd_get_help(RzCmd *cmd, RzCmdParsedArgs *args, ut32 pflags) {
 	char *cmdid = strdup(rz_cmd_parsed_args_cmd(args));
 	char *cmdid_p = cmdid + strlen(cmdid) - 1;
 	size_t detail = 0;
@@ -1197,7 +1252,7 @@ RZ_API char *rz_cmd_get_help(RzCmd *cmd, RzCmdParsedArgs *args, bool use_color) 
 		return NULL;
 	}
 
-	return get_help(cmd, cd, args, use_color, detail);
+	return get_help(cmd, cd, args, pflags, detail);
 }
 
 /** macro.c **/
