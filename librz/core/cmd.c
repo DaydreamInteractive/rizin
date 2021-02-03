@@ -4853,49 +4853,42 @@ exit_status:
 
 DEFINE_HANDLE_TS_FCN_AND_SYMBOL(help_command) {
 	size_t node_str_len = strlen(node_string);
-	if (node_str_len >= 2 && !strcmp(node_string + node_str_len - 2, "?*")) {
-		// this needs to be properly handled.
-		const char* args = node_string;
-		return rz_cmd_help_search_handler(state->core, 1, &args, RZ_OUTPUT_MODE_STANDARD);
+	TSNode command = ts_node_child_by_field_name(node, "command", strlen("command"));
+	char *command_str = ts_node_sub_string(command, state->input);
+	TSNode args = ts_node_child_by_field_name(node, "args", strlen("args"));
+	RzCmdParsedArgs *pr_args = NULL;
+	RzCmdStatus res = RZ_CMD_STATUS_INVALID;
+	if (!ts_node_is_null(args)) {
+		RzCmdDesc *cd = rz_cmd_get_desc(state->core->rcmd, command_str);
+		bool do_unwrap = cd && cd->type != RZ_CMD_DESC_TYPE_OLDINPUT;
+		pr_args = ts_node_handle_arg_prargs(state, node, args, 1, do_unwrap);
+		if (!pr_args) {
+			goto err_else;
+		}
+		rz_cmd_parsed_args_setcmd(pr_args, command_str);
 	} else {
-		TSNode command = ts_node_child_by_field_name(node, "command", strlen("command"));
-		char *command_str = ts_node_sub_string(command, state->input);
-		TSNode args = ts_node_child_by_field_name(node, "args", strlen("args"));
-		RzCmdParsedArgs *pr_args = NULL;
-		RzCmdStatus res = RZ_CMD_STATUS_INVALID;
-		if (!ts_node_is_null(args)) {
-			RzCmdDesc *cd = rz_cmd_get_desc(state->core->rcmd, command_str);
-			bool do_unwrap = cd && cd->type != RZ_CMD_DESC_TYPE_OLDINPUT;
-			pr_args = ts_node_handle_arg_prargs(state, node, args, 1, do_unwrap);
-			if (!pr_args) {
-				goto err_else;
-			}
-			rz_cmd_parsed_args_setcmd(pr_args, command_str);
-		} else {
-			pr_args = rz_cmd_parsed_args_newcmd(command_str);
-			if (!pr_args) {
-				goto err_else;
-			}
+		pr_args = rz_cmd_parsed_args_newcmd(command_str);
+		if (!pr_args) {
+			goto err_else;
 		}
-
-		// let's try first with the new auto-generated help, if
-		// something fails fallback to old behaviour
-		ut32 pflags = RZ_CMD_HELP_PRINT_DEFAULT;
-		if (state->core->print->flags & RZ_PRINT_FLAGS_COLOR) {
-			pflags |= RZ_CMD_HELP_PRINT_USE_COLORS;
-		}
-		char *help_msg = rz_cmd_get_help(state->core->rcmd, pr_args, pflags);
-		if (help_msg) {
-			rz_cons_printf("%s", help_msg);
-			free(help_msg);
-			res = RZ_CMD_STATUS_OK;
-		}
-	err_else:
-		rz_cmd_parsed_args_free(pr_args);
-		free(command_str);
-		return res;
 	}
-	return RZ_CMD_STATUS_OK;
+
+	// let's try first with the new auto-generated help, if
+	// something fails fallback to old behaviour
+	ut32 pflags = RZ_CMD_HELP_PRINT_DEFAULT;
+	if (state->core->print->flags & RZ_PRINT_FLAGS_COLOR) {
+		pflags |= RZ_CMD_HELP_PRINT_USE_COLORS;
+	}
+	char *help_msg = rz_cmd_get_help(state->core->rcmd, pr_args, pflags);
+	if (help_msg) {
+		rz_cons_printf("%s", help_msg);
+		free(help_msg);
+		res = RZ_CMD_STATUS_OK;
+	}
+err_else:
+	rz_cmd_parsed_args_free(pr_args);
+	free(command_str);
+	return res;
 }
 
 DEFINE_HANDLE_TS_FCN_AND_SYMBOL(tmp_seek_command) {
